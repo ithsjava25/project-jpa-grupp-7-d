@@ -25,20 +25,37 @@ public class PlaylistRepository {
                     .getResultList();
     }
 
-    public void addSong(Long playlistId, Long songId, int position) {
-        Playlist playlist = em.find(Playlist.class, playlistId);
-        if (playlist == null) throw new IllegalArgumentException("Playlist with ID " + playlistId + " not found.");
+    public Playlist findByName(String name) {
+        List<Playlist> results = em.createQuery("SELECT p FROM Playlist p WHERE p.name = :name", Playlist.class)
+                .setParameter("name", name)
+                .getResultList();
+        return results.isEmpty() ? null : results.get(0);
+    }
 
-        Song song = em.find(Song.class, songId);
-        if (song == null) throw new IllegalArgumentException("Song with ID " + songId + " not found.");
+    public Song findSongByTitle(String title) {
+        List<Song> results = em.createQuery("SELECT s FROM Song s WHERE s.title = :title", Song.class)
+                .setParameter("title", title)
+                .getResultList();
+        return results.isEmpty() ? null : results.get(0);
+    }
+
+    public void addSong(String playlistName, String songTitle, int position) {
+        Playlist playlist = findByName(playlistName);
+        if (playlist == null) throw new IllegalArgumentException("Playlist with name '" + playlistName + "' not found.");
+
+        Song song = findSongByTitle(songTitle);
+        if (song == null) throw new IllegalArgumentException("Song with title '" + songTitle + "' not found.");
 
         playlist.addSong(song, position);
     }
 
-    public void removeSong(Long playlistId, Long songId) {
-        Playlist playlist = em.find(Playlist.class, playlistId);
-        if (playlist == null) throw new IllegalArgumentException("Playlist with ID " + playlistId + " not found.");
+    public void removeSong(String playlistName, String songTitle) {
+        Playlist playlist = findByName(playlistName);
+        if (playlist == null) throw new IllegalArgumentException("Playlist with name '" + playlistName + "' not found.");
 
-        playlist.removeSongBySongId(songId);
+        Song song = findSongByTitle(songTitle);
+        if (song == null) throw new IllegalArgumentException("Song with title '" + songTitle + "' not found.");
+
+        playlist.removeSongBySongId(song.getId());
     }
 }

@@ -3,6 +3,8 @@ package org.example;
 import org.example.model.Artist;
 import org.example.model.Album;
 import org.example.model.Song;
+import org.example.model.Playlist;
+import org.example.repository.PlaylistRepository;
 
 import javax.persistence.*;
 import java.util.List;
@@ -17,6 +19,8 @@ public class Main {
         EntityManagerFactory emf = Persistence.createEntityManagerFactory("musicPU");
         em = emf.createEntityManager();
 
+        PlaylistRepository playlistRepo = new PlaylistRepository(em);
+
         System.out.println(" VÄLKOMMEN TILL MUSIKAPPEN ");
 
         // meny
@@ -28,6 +32,10 @@ public class Main {
             System.out.println("3. Lägg till album");
             System.out.println("4. Lägg till låt");
             System.out.println("5. Visa all musik");
+            System.out.println("6. Skapa playlist");
+            System.out.println("7. Visa alla playlists");
+            System.out.println("8. Lägg till låt i playlist");
+            System.out.println("9. Ta bort låt från playlist");
             System.out.println("0. Avsluta");
             System.out.print("Välj: ");
 
@@ -40,6 +48,10 @@ public class Main {
                 case 3: addAlbum(); break;
                 case 4: addSong(); break;
                 case 5: showAllMusic(); break;
+                case 6: createPlaylist(playlistRepo); break;
+                case 7: showPlaylists(playlistRepo); break;
+                case 8: addSongToPlaylist(playlistRepo); break;
+                case 9: removeSongFromPlaylist(playlistRepo); break;
                 case 0:
                     running = false;
                     System.out.println(" Hej då!");
@@ -194,5 +206,96 @@ public class Main {
             }
         }
         System.out.println("==============================");
+    }
+
+    // 6. skapa playlist
+    static void createPlaylist(PlaylistRepository repo) {
+        System.out.println("Playlist namn:");
+        String name = scan.nextLine();
+
+        em.getTransaction().begin();
+        repo.createPlaylist(name);
+        em.getTransaction().commit();
+
+        System.out.println("✅ Playlist skapad!");
+    }
+
+    // 7. visa alla playlists
+    static void showPlaylists(PlaylistRepository repo) {
+        List<Playlist> playlists = repo.findAll();
+        if (playlists.isEmpty()) {
+            System.out.println("Inga playlists hittades.");
+            return;
+        }
+
+        System.out.println("\n=== ALLA PLAYLISTS ===");
+        for (Playlist p : playlists) {
+            System.out.println("\n🎵 PLAYLIST: " + p.getName());
+            if (p.getEntries().isEmpty()) {
+                System.out.println("   (Inga låtar)");
+            } else {
+                for (int i = 0; i < p.getEntries().size(); i++) {
+                    Song song = p.getEntries().get(i).getSong();
+                    if (song != null) {
+                        System.out.println("   " + (i + 1) + ". " + song.getTitle());
+                    }
+                }
+            }
+        }
+        System.out.println("======================");
+    }
+
+   static void addSongToPlaylist(PlaylistRepository repo) {
+            System.out.println("Playlist namn:");
+            String playlistName = scan.nextLine();
+
+            System.out.println("Låt titel:");
+            String songTitle = scan.nextLine();
+
+            // Append to next available slot
+            List<Playlist> playlists = repo.findAll();
+            Playlist target = null;
+            for (Playlist p : playlists) {
+                if (p.getName().equalsIgnoreCase(playlistName)) {
+                    target = p;
+                    break;
+                }
+            }
+
+            if (target == null) {
+                System.out.println("❌ Fel: Playlist hittades inte: " + playlistName);
+                return;
+            }
+
+            int position = (target.getEntries() == null) ? 1 : target.getEntries().size() + 1;
+
+            em.getTransaction().begin();
+            try {
+                repo.addSong(playlistName, songTitle, position);
+                em.getTransaction().commit();
+                System.out.println("✅ Låt '" + songTitle + "' tillagd i playlist: " + playlistName);
+            } catch (IllegalArgumentException e) {
+                em.getTransaction().rollback();
+                System.out.println("❌ Fel: " + e.getMessage());
+            }
+        }
+
+    // 9. ta bort låt från playlist
+    static void removeSongFromPlaylist(PlaylistRepository repo) {
+        System.out.println("Playlist namn:");
+        String playlistName = scan.nextLine();
+
+        System.out.println("Låt titel:");
+        String songTitle = scan.nextLine();
+
+        em.getTransaction().begin();
+        try {
+            repo.removeSong(playlistName, songTitle);
+            em.getTransaction().commit();
+            System.out.println("✅ Låt '" + songTitle + "' borttagen från playlist: " + playlistName);
+        } catch (IllegalArgumentException e) {
+            em.getTransaction().rollback();
+            System.out.println("❌ Fel: " + e.getMessage());
+        }
     }
 }
